@@ -75,17 +75,24 @@ const spinner = (0, _ora().default)(); // const exec = require("child_process").
 
 function download(u) {
   return new Promise((resolve, reject) => {
-    const stream = _fs().default.createWriteStream((0, _path().join)(dllPath, u.filename));
-
     spinner.start(`start download: ${u.filename} ... `);
-    (0, _request().default)(u.addr).pipe(stream).on("close", () => {
-      spinner.succeed(_chalk().default.green(`download: ${u.filename} succeed!!!`));
-      resolve();
+    const req = (0, _request().default)(u.addr).on("response", response => {
+      const statusCode = response.statusCode;
+
+      if (statusCode === 200) {
+        const stream = _fs().default.createWriteStream((0, _path().join)(dllPath, u.filename));
+
+        req.pipe(stream);
+        spinner.succeed(_chalk().default.green(`download: ${u.filename} succeed!!!`));
+      } else {
+        spinner.fail(_chalk().default.red(`download: ${u.filename} failed!!! status: ${statusCode}`));
+        process.exit(1);
+      }
     }).on("error", e => {
       spinner.fail(_chalk().default.red(`download: ${u.filename} failed!!!`));
       reject(e);
       process.exit(1);
-    });
+    }).on("close", () => resolve());
   });
 }
 

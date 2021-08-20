@@ -18,20 +18,29 @@ const spinner = ora();
 
 function download(u: any): Promise<void> {
   return new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(join(dllPath, u.filename));
     spinner.start(`start download: ${u.filename} ... `);
 
-    request(u.addr)
-      .pipe(stream)
-      .on("close", () => {
-        spinner.succeed(chalk.green(`download: ${u.filename} succeed!!!`));
-        resolve();
+    const req = request(u.addr)
+      .on("response", (response) => {
+        const { statusCode } = response;
+        if (statusCode === 200) {
+          const stream = fs.createWriteStream(join(dllPath, u.filename));
+          req.pipe(stream);
+          spinner.succeed(chalk.green(`download: ${u.filename} succeed!!!`));
+        } else {
+          spinner.fail(
+            chalk.red(`download: ${u.filename} failed!!! status: ${statusCode}`)
+          );
+          process.exit(1);
+        }
       })
+
       .on("error", (e: Error) => {
         spinner.fail(chalk.red(`download: ${u.filename} failed!!!`));
         reject(e);
         process.exit(1);
-      });
+      })
+      .on("close", () => resolve());
   });
 }
 
@@ -58,7 +67,7 @@ export default async () => {
   } while (i < urls.length);
 
   spinner.stopAndPersist({
-    text: chalk.greenBright("download dll completed"),
+    text: chalk.greenBright("download dlls completed!!!"),
     symbol: "🦄",
   });
 };
