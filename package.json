@@ -1,0 +1,16 @@
+{
+  "name": "effe",
+  "private": true,
+  "scripts": {
+    "build": "father-build"
+  },
+  "devDependencies": {
+    "lerna": "^4.0.0"
+  },
+  "dependencies": {
+    "father-build": "^1.19.8"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
