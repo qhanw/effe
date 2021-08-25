@@ -15,6 +15,26 @@ function _fs() {
   return data;
 }
 
+function _path() {
+  const data = require("path");
+
+  _path = function _path() {
+    return data;
+  };
+
+  return data;
+}
+
+function _got() {
+  const data = _interopRequireDefault(require("got"));
+
+  _got = function _got() {
+    return data;
+  };
+
+  return data;
+}
+
 function _ora() {
   const data = _interopRequireDefault(require("ora"));
 
@@ -29,26 +49,6 @@ function _chalk() {
   const data = _interopRequireDefault(require("chalk"));
 
   _chalk = function _chalk() {
-    return data;
-  };
-
-  return data;
-}
-
-function _path() {
-  const data = require("path");
-
-  _path = function _path() {
-    return data;
-  };
-
-  return data;
-}
-
-function _request() {
-  const data = _interopRequireDefault(require("request"));
-
-  _request = function _request() {
     return data;
   };
 
@@ -76,23 +76,37 @@ const spinner = (0, _ora().default)(); // const exec = require("child_process").
 function download(u) {
   return new Promise((resolve, reject) => {
     spinner.start(`start download: ${u.filename} ... `);
-    const req = (0, _request().default)(u.addr).on("response", response => {
+
+    const st = _got().default.stream(u.addr); // st.retryCount = retryCount
+
+
+    st.on("response", response => {
       const statusCode = response.statusCode;
 
       if (statusCode === 200) {
         const stream = _fs().default.createWriteStream((0, _path().join)(dllPath, u.filename));
 
-        req.pipe(stream);
-        spinner.succeed(_chalk().default.green(`download: ${u.filename} succeed!!!`));
-      } else {
-        spinner.fail(_chalk().default.red(`download: ${u.filename} failed!!! status: ${statusCode}`));
-        process.exit(1);
+        st.pipe(stream);
       }
+    });
+    st.on("downloadProgress", progress => {
+      const transferred = progress.transferred,
+            total = progress.total,
+            percent = progress.percent;
+      const per = (percent * 100).toFixed(2);
+      spinner.text = `Downloading[${u.filename}]: ${per}% ${transferred}/${total}`;
+
+      if (total && percent === 1) {
+        spinner.succeed(_chalk().default.green(`download: ${u.filename} succeed!!!`));
+      }
+    }).on("end", () => {
+      resolve(); // spinner.succeed(chalk.green(`download: ${u.filename} succeed!!!`));
     }).on("error", e => {
       spinner.fail(_chalk().default.red(`download: ${u.filename} failed!!!`));
+      spinner.fail(_chalk().default.red(`ERROR: ${e}`));
       reject(e);
       process.exit(1);
-    }).on("close", () => resolve());
+    });
   });
 }
 
@@ -120,7 +134,7 @@ var _default = /*#__PURE__*/_asyncToGenerator(function* () {
   } while (i < urls.length);
 
   spinner.stopAndPersist({
-    text: _chalk().default.greenBright("download dll completed"),
+    text: _chalk().default.greenBright("download dlls completed!!!"),
     symbol: "🦄"
   });
 });

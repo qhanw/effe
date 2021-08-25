@@ -1,8 +1,9 @@
 import fs from "fs";
+import { join } from "path";
+import got from "got";
 import ora from "ora";
 import chalk from "chalk";
-import { join } from "path";
-import request from "request";
+
 // import { exec } from "child_process";
 import rc from "../utils/getRc";
 import getPkgJson from "../utils/getPkgJson";
@@ -20,27 +21,37 @@ function download(u: any): Promise<void> {
   return new Promise((resolve, reject) => {
     spinner.start(`start download: ${u.filename} ... `);
 
-    const req = request(u.addr)
-      .on("response", (response) => {
-        const { statusCode } = response;
-        if (statusCode === 200) {
-          const stream = fs.createWriteStream(join(dllPath, u.filename));
-          req.pipe(stream);
+    const st = got.stream(u.addr);
+    // st.retryCount = retryCount
+
+    st.on("response", (response) => {
+      const { statusCode } = response;
+      if (statusCode === 200) {
+        const stream = fs.createWriteStream(join(dllPath, u.filename));
+        st.pipe(stream);
+      }
+    })
+      .on("downloadProgress", (progress) => {
+        const { transferred, total, percent } = progress;
+
+        const per = (percent * 100).toFixed(2);
+
+        spinner.text = `Downloading[${u.filename}]: ${per}% ${transferred}/${total}`;
+
+        if (total && percent === 1) {
           spinner.succeed(chalk.green(`download: ${u.filename} succeed!!!`));
-        } else {
-          spinner.fail(
-            chalk.red(`download: ${u.filename} failed!!! status: ${statusCode}`)
-          );
-          process.exit(1);
         }
       })
+      // spinner.succeed(chalk.green(`download: ${u.filename} succeed!!!`));
+      .on("end", () => resolve())
 
-      .on("error", (e: Error) => {
+      .on("error", (e) => {
         spinner.fail(chalk.red(`download: ${u.filename} failed!!!`));
+        spinner.fail(chalk.red(`ERROR: ${e}`));
+
         reject(e);
         process.exit(1);
-      })
-      .on("close", () => resolve());
+      });
   });
 }
 
